@@ -29,6 +29,7 @@ struct capturer {
 std::vector<struct capturer> all_capturers;
 
 cwipc_tiledsource *cwipc_capturer(const char *configFilename, char **errorMessage, uint64_t apiVersion) {
+    printf("get in cwipc_capturer\n");
     if (apiVersion < CWIPC_API_VERSION_OLD || apiVersion > CWIPC_API_VERSION) {
         if (errorMessage) {
             char* msgbuf = (char*)malloc(1024);
@@ -38,7 +39,7 @@ cwipc_tiledsource *cwipc_capturer(const char *configFilename, char **errorMessag
 
         return NULL;
     }
-
+    
     if (configFilename == nullptr || *configFilename == '\0') {
         configFilename = "cameraconfig.json";
     }
@@ -139,8 +140,9 @@ cwipc_tiledsource *cwipc_capturer(const char *configFilename, char **errorMessag
 
     std::string type;
     json_data.at("type").get_to(type);
-
+    printf("must be here, type: %s\n", type.c_str());
     for (auto& c: all_capturers) {
+        printf("Checking %s\n", c.name.c_str());
         if (c.name == type) {
             return c.factoryFunc(configFilename, errorMessage, apiVersion);
         }
@@ -161,6 +163,7 @@ int _cwipc_register_capturer(const char *name, _cwipc_functype_count_devices *co
     new_capturer.name = name;
     new_capturer.countFunc = countFunc;
     new_capturer.factoryFunc = factoryFunc;
+    printf("pushing back capturer %s\n", name);
     all_capturers.push_back(new_capturer);
 
     return 1;

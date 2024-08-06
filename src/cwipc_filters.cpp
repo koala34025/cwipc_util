@@ -358,3 +358,30 @@ cwipc* cwipc_join(cwipc *pc1, cwipc *pc2) {
     return rv;
 }
 
+cwipc* cwipc_crop2(cwipc *pc, float bbox[6]) {
+    if (pc == NULL) {
+        return NULL;
+    }
+
+    cwipc_pcl_pointcloud src = pc->access_pcl_pointcloud();
+
+    if (src == NULL) {
+        return NULL;
+    }
+
+    cwipc_pcl_pointcloud dst = new_cwipc_pcl_pointcloud();
+
+    for (auto pt : src->points) {
+        if (bbox[0] <= pt.x && pt.x < bbox[1] &&
+            bbox[2] <= pt.y && pt.y < bbox[3] &&
+            bbox[4] <= pt.z && pt.z < bbox[5]) {
+
+            dst->points.push_back(pt);
+        }
+    }
+
+    cwipc *rv = cwipc_from_pcl(dst, pc->timestamp(), NULL, CWIPC_API_VERSION);
+    rv->_set_cellsize(pc->cellsize());
+
+    return rv;
+}

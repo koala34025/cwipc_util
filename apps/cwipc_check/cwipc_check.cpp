@@ -70,29 +70,29 @@ int check() {
     {
         std::cerr << "cwipc_kinect: ok." << std::endl;
     }
-    std::cerr << "python: determining version:" << std::endl;
-    cmd = "python --version";
+    std::cerr << "python3: determining version:" << std::endl;
+    cmd = "python3 --version";
     status = ::system(cmd.c_str());
     if (status != 0) {
         ok = false;
-        std::cerr << "python: not ok." << std::endl;
-        std::cerr << "python: " << cmd << ": exit status: " << status << std::endl;
+        std::cerr << "python3: not ok." << std::endl;
+        std::cerr << "python3: " << cmd << ": exit status: " << status << std::endl;
     }
     else
     {
-        std::cerr << "python: ok." << std::endl;
+        std::cerr << "python3: ok." << std::endl;
     }
-    std::cerr << "cwipc python modules: determining version:" << std::endl;
-    cmd = "python -m cwipc.scripts.cwipc_view --version";
+    std::cerr << "cwipc python3 modules: determining version:" << std::endl;
+    cmd = "python3 -m cwipc.scripts.cwipc_view --version";
     status = ::system(cmd.c_str());
     if (status != 0) {
         ok = false;
-        std::cerr << "cwipc python modules: not ok." << std::endl;
-        std::cerr << "cwipc python modules: " << cmd << ": exit status: " << status << std::endl;
+        std::cerr << "cwipc python3 modules: not ok." << std::endl;
+        std::cerr << "cwipc python3 modules: " << cmd << ": exit status: " << status << std::endl;
     }
     else
     {
-        std::cerr << "cwipc python modules: ok." << std::endl;
+        std::cerr << "cwipc python3 modules: ok." << std::endl;
     }
     if (!ok) return 1;
     return 0;

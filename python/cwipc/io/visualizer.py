@@ -65,7 +65,7 @@ q             Quit
         self.stopped = False
         self.stop_requested = False
         self.point_size_min = 0.0005
-        self.point_size_power = 0
+        self.point_size_power = 4
         
     def statistics(self) -> None:
         pass
@@ -159,6 +159,7 @@ q             Quit
         cellsize = self.point_size_min
         if pc:
             # First show RGB, if wanted
+            # print(self.show_rgb)
             if self.show_rgb:
                 self.draw_rgb(pc)
             cellsize = max(pc.cellsize(), cellsize)
@@ -237,11 +238,14 @@ q             Quit
         """Draw a window with the RGB data of all cameras."""
         auxdata = pc.access_auxiliary_data()
         if not auxdata:
+            print("draw_rgb: no auxiliary data")
             return
         per_camera_images = auxdata.get_all_images("rgb.")
         all_images = list(per_camera_images.values())
 
         if len(all_images) == 0:
+            # cropping cause the rgb window disappear
+            # print("must be here =.=")
             return
         if self.rgb_cw or self.rgb_ccw:
             full_image = cv2.hconcat(all_images)
@@ -256,6 +260,7 @@ q             Quit
             new_h = int(h*scale)
             new_w = int(w*scale)
             full_image = cv2.resize(full_image, (new_w, new_h), interpolation=cv2.INTER_NEAREST)
+        # print("got here?")
         cv2.imshow("RGB", full_image)
         cv2.waitKey(1)
     

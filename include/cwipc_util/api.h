@@ -1061,6 +1061,16 @@ _CWIPC_UTIL_EXPORT const char *cwipc_get_version();
      */
     _CWIPC_UTIL_EXPORT cwipc_tiledsource* cwipc_proxy(const char* host, int port, char** errorMessage, uint64_t apiVersion);
 
+    /** \brief Spatially crop a pointcloud.
+     * \param pc The source pointcloud.
+     * \param bbox minx, maxx, miny, maxy, minz, maxz
+     * \return a new pointcloud
+     *
+     * Returns a new cropped pointcloud.
+     * The new pointcloud contains only the points that fall within the bbxo bounding box.
+     * Lower bounds are included, upper bounds are excluded.
+     */
+    _CWIPC_UTIL_EXPORT cwipc* cwipc_crop2(cwipc* pc, float bbox[6]);
 #ifdef __cplusplus
 }
 #endif

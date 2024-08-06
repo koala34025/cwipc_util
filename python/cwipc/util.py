@@ -53,6 +53,8 @@ __all__ = [
     'cwipc_colormap',
     'cwipc_join',
     'cwipc_crop',
+
+    'cwipc_crop2',
 ]
 
 CWIPC_API_VERSION = 0x20240128
@@ -490,6 +492,8 @@ def cwipc_util_dll_load(libname : Optional[str]=None) -> ctypes.CDLL:
     _cwipc_util_dll_reference.cwipc_auxiliary_data_size.argtypes = [cwipc_auxiliary_data_p, ctypes.c_int]
     _cwipc_util_dll_reference.cwipc_auxiliary_data_size.restype = ctypes.c_int
 
+    _cwipc_util_dll_reference.cwipc_crop2.argtypes = [cwipc_p, ctypes.c_float*6]
+    _cwipc_util_dll_reference.cwipc_crop2.restype = cwipc_p
 
     return _cwipc_util_dll_reference
 
@@ -1146,3 +1150,9 @@ def cwipc_proxy(host : str, port : int) -> cwipc_tiledsource_wrapper:
     if rv:
         return cwipc_tiledsource_wrapper(rv)
     raise CwipcError("cwipc_proxy: cannot create capturer, but no specific error returned from C library")
+
+def cwipc_crop2(pc : cwipc_wrapper, bbox : Union[tuple[float, float, float, float, float, float], List[float]]) -> cwipc_wrapper:
+    """Return pointcloud cropped to a bounding box specified as minx, maxx, miny, maxy, minz, maxz"""
+    bbox_arg = (ctypes.c_float*6)(*bbox)
+    rv = cwipc_util_dll_load().cwipc_crop2(pc.as_cwipc_p(), bbox_arg)
+    return cwipc_wrapper(rv)
