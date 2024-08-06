@@ -17,6 +17,7 @@ def main():
     parser.add_argument("--rgb", action="store_true", help="Show RGB captures in addition to point clouds")
     parser.add_argument("--rgb_cw", action="store_true", help="When showing RGB captures first rotate the 90 degrees clockwise")
     parser.add_argument("--rgb_ccw", action="store_true", help="When showing RGB captures first rotate the 90 degrees counterclockwise")
+    parser.add_argument("--depth", action="store_true", help="Show depth captures in addition to point clouds")
     parser.add_argument("--help_commands", action="store_true", help="List interactive commands and exit")
     args = parser.parse_args()
     if args.help_commands:
@@ -37,6 +38,8 @@ def main():
         source.request_auxiliary_data("skeleton")
     if args.rgb:
         source.request_auxiliary_data("rgb")
+    if args.depth:
+        source.request_auxiliary_data("depth")
 
     sourceServer = SourceServer(source, visualizer, args, source_name=source_name)
     sourceThread = threading.Thread(target=sourceServer.run, args=(), name="cwipc_view.SourceServer")

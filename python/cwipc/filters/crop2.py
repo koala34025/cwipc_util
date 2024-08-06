@@ -4,6 +4,7 @@ from .abstract import cwipc_abstract_filter
 from ..util import cwipc_crop, cwipc_wrapper, cwipc_from_points
 import cv2
 import pyrealsense2
+import numpy as np
 
 class Crop2Filter(cwipc_abstract_filter):
     """
@@ -25,24 +26,37 @@ class Crop2Filter(cwipc_abstract_filter):
         self.original_pointcounts = []
         self.pointcounts = []
         self.last_rgb = None
+        self.last_depth = None
+        # 1000=1m, ?10cm
+        # read in background depth image
+        self.depth_background = cv2.imread("crop2_depth_background.png", cv2.IMREAD_UNCHANGED)
+        print(f"crop2: background depth image shape: {self.depth_background.shape}")
+        print(min(self.depth_background.flatten()), max(self.depth_background.flatten()))
 
-    def extract_rgb_images(self, pc: cwipc_wrapper):
+    def extract_rgb_and_depth_images(self, pc: cwipc_wrapper):
         """Extract and concatenate RGB images from the point cloud auxiliary data."""
         auxdata = pc.access_auxiliary_data()
         if not auxdata:
             print("crop2_rgb filter: no auxiliary data")
-            return None
+            return None, None
         per_camera_images = auxdata.get_all_images("rgb.")
-        all_images = list(per_camera_images.values())
-        if len(all_images) == 0:
+        rgb_image = list(per_camera_images.values())
+        if len(rgb_image) == 0:
             print("crop2_rgb: here 0 =.=")
-            return None
-        full_image = cv2.vconcat(all_images)
+            return None, None
+        rgb_image = cv2.vconcat(rgb_image)
 
         # its a BGR image, convert to RGB
-        full_image = cv2.cvtColor(full_image, cv2.COLOR_BGR2RGB)
+        rgb_image = cv2.cvtColor(rgb_image, cv2.COLOR_BGR2RGB)
         
-        return full_image
+        depth_image = auxdata.get_all_images("depth.")
+        depth_image = list(depth_image.values())
+        if len(depth_image) == 0:
+            print("crop2_rgb: here 1 =.=")
+            return rgb_image, None
+        depth_image = cv2.vconcat(depth_image)
+
+        return rgb_image, depth_image
 
     def filter(self, pc : cwipc_wrapper) -> cwipc_wrapper:
         self.count += 1
@@ -51,20 +65,49 @@ class Crop2Filter(cwipc_abstract_filter):
 
         x, y, w, h = 360, 310, 120, 150
 
-        rgb_image = None
-        rgb_image = self.extract_rgb_images(pc)
+        rgb_image, depth_image = None, None
+        rgb_image, depth_image = self.extract_rgb_and_depth_images(pc)
         # draw bounding box on rgb image
         # draw a dot on x, y
         if rgb_image is not None:
             cv2.rectangle(rgb_image, (x, y), (x+w, y+h), (0, 255, 0), 2)
             cv2.circle(rgb_image, (x, y), 5, (0, 0, 255), -1)
         self.last_rgb = rgb_image
+        self.last_depth = depth_image
+
+        depth_diff = cv2.absdiff(self.depth_background, depth_image)
+        _, binary_mask = cv2.threshold(depth_diff, 2000, 255, cv2.THRESH_BINARY)
+        contours, _ = cv2.findContours(binary_mask.astype(np.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        
+        # find the largest contour
+        max_area = 0
+        max_contour = None
+        for contour in contours:
+            area = cv2.contourArea(contour)
+            # print(area)
+            if area > max_area:
+                max_area = area
+                max_contour = contour
+        if max_contour is None:
+            print("crop2: no contour found")
+        print(max_area)
+
+        if(max_area < 10000):
+            # do not crop
+            # print("crop2: no need to crop")    
+            t2_d = time.time()
+            self.times.append(t2_d-t1_d)
+            self.pointcounts.append(pc.count())
+            return pc
+
+        # find the bounding box of the largest contour
+        x, y, w, h = cv2.boundingRect(max_contour)
 
         points = pc.get_points()
         timestamp = pc.timestamp()
         cellsize = pc.cellsize()
 
-        if len(points) == 0:
+        if len(points) < 10:
             t2_d = time.time()
             self.times.append(t2_d-t1_d)
             self.pointcounts.append(pc.count())
@@ -106,16 +149,17 @@ class Crop2Filter(cwipc_abstract_filter):
         # newpc = cwipc_from_points(points, timestamp)
         # newpc._set_cellsize(cellsize)
         # pc.free()
+        # t2_d = time.time()
+        # self.times.append(t2_d-t1_d)
+        # self.pointcounts.append(newpc.count())
+        # return newpc
+    
         # cropping cause the rgb window disappear
         cropped_pc = cwipc_crop(pc, self.bounding_box)
         pc.free()
         pc = cropped_pc
-
         t2_d = time.time()
         self.times.append(t2_d-t1_d)
-        # self.pointcounts.append(newpc.count())
-        # return newpc
-    
         self.pointcounts.append(pc.count())
         return pc
 
@@ -189,6 +233,8 @@ class Crop2Filter(cwipc_abstract_filter):
         
         if self.last_rgb is not None:
             self.save_last_rgb()
+        if self.last_depth is not None:
+            self.save_last_depth()
 
     def print1stat(self, name : str, values : Union[List[int], List[float]], isInt : bool=False) -> None:
         count = len(values)
@@ -206,7 +252,7 @@ class Crop2Filter(cwipc_abstract_filter):
     
     def save_last_rgb(self):
         # Scale to something reasonable
-        full_image = self.last_rgb
+        rgb_image = self.last_rgb
 
         # acutally no reshape
         # h, w, _ = full_image.shape
@@ -220,7 +266,15 @@ class Crop2Filter(cwipc_abstract_filter):
         #     print(f"crop2_rgb: scaling to {new_w}x{new_h}")
         #     full_image = cv2.resize(full_image, (new_w, new_h), interpolation=cv2.INTER_NEAREST)
         
-        cv2.imwrite("crop2_rgb.png", full_image)
+        cv2.imwrite("crop2_rgb.png", rgb_image)
         print(f"crop2_rgb: saved rgb image to crop2_rgb.png")
+
+    def save_last_depth(self):
+        depth_image = self.last_depth
+        # print shape
+        print(f"crop2_depth: image shape: {depth_image.shape}")
+        print(min(depth_image.flatten()), max(depth_image.flatten()))
+        cv2.imwrite("crop2_depth.png", depth_image)
+        print(f"crop2_depth: saved depth image to crop2_depth.png")
 
 CustomFilter = Crop2Filter
